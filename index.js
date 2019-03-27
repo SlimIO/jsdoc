@@ -9,6 +9,8 @@ const C_ARROBASE = "@".charCodeAt(0);
 const C_SPACE = " ".charCodeAt(0);
 const C_EOL = "\n".charCodeAt(0);
 const C_STAR = "*".charCodeAt(0);
+const C_ASLASH = "/".charCodeAt(0);
+
 const PARSE_PARAM = new Set(["param", "returns", "return", "arg", "argument", "typedef", "type", "property", "throws", "member"]);
 const STD_PARAM = new Set(["return", "returns", "throws"]);
 
@@ -50,11 +52,20 @@ function sliceTo(buf, pos, carac) {
 function parseJSDocBlock(buf) {
     const ret = Object.create(null);
     let offset = 0;
+    let multiLine = null;
 
     for (let i = 0; i < buf.length; i++) {
+        // eslint-disable-next-line
+        if (multiLine !== null && (buf[i] === C_ARROBASE || (buf[i - 1] === C_STAR && buf[i] === C_ASLASH))) {
+            const line = buf.slice(offset, i - 1).toString().trim().replace(/\*/g, "");
+            ret[multiLine] = line === "" ? true : line;
+            multiLine = null;
+        }
+
         if (buf[i] !== C_ARROBASE) {
             continue;
         }
+
         const bufName = toLowerCase(sliceTo(buf, i, C_SPACE));
         i += bufName.length;
 
@@ -99,6 +110,10 @@ function parseJSDocBlock(buf) {
             else {
                 ret[nameStr] = toAssign;
             }
+        }
+        else if (nameStr === "example" || nameStr === "desc") {
+            offset = i + 1;
+            multiLine = nameStr;
         }
         else {
             const line = lineBuf.toString().trim().normalize();

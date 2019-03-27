@@ -124,6 +124,60 @@ function parseJSDocBlock(buf) {
     return ret;
 }
 
+function hasMember(block) {
+    if (Reflect.has(block, "namespace")) {
+        return [true, "namespace"];
+    }
+    if (Reflect.has(block, "class")) {
+        return [true, "class"];
+    }
+    if (Reflect.has(block, "module")) {
+        return [true, "module"];
+    }
+
+    return [false, null];
+}
+
+/**
+ * @func linkJSDocBlocks
+ * @param {Array<any>} blocks blocks
+ * @returns {Object}
+ */
+function linkJSDocBlocks(blocks) {
+    if (!Array.isArray(blocks)) {
+        throw new TypeError("blocks must be instanceof Array");
+    }
+
+    const ret = Object.create(null);
+    ret._orphans = [];
+    const link = new Set();
+
+    for (const block of blocks) {
+        const [has, name] = hasMember(block);
+        if (has) {
+            const memberName = block[name].toLowerCase();
+            block.members = [];
+            ret[memberName] = block;
+            link.add(memberName);
+            continue;
+        }
+
+        sub: if (Reflect.has(block, "memberof")) {
+            const memberOf = block.memberof.toLowerCase();
+            if (!link.has(memberOf)) {
+                break sub;
+            }
+
+            ret[memberOf].members.push(block);
+            continue;
+        }
+
+        ret._orphans.push(block);
+    }
+
+    return ret;
+}
+
 const buf = readFileSync("./temp/beta.js");
 
 console.time("parse");
@@ -132,4 +186,5 @@ for (const block of jsdocExtractor(buf)) {
     objs.push(parseJSDocBlock(block));
 }
 console.timeEnd("parse");
-console.log(JSON.stringify(objs, null, 4));
+const ret = linkJSDocBlocks(objs);
+console.log(JSON.stringify(ret, null, 4));

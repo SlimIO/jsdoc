@@ -43,11 +43,11 @@ const schema = Symbol("schema");
  * @version 0.1.0
  */
 class Config extends events {
-
     /**
      * @version 0.1.0
      *
      * @constructor
+     * @memberof Config
      * @param {!String} configFilePath Absolute path to the configuration file
      * @param {Object} [options={}] Config options
      * @param {Boolean=} [options.createOnNoEntry=false] Create the configuration file when no entry are detected
@@ -111,7 +111,7 @@ class Config extends events {
      * @version 0.1.0
      *
      * @public
-     * @memberof Config#
+     * @memberof Config
      * @member {Object} payload
      * @desc Get a payload Object clone (or null if the configuration has not been read yet)
      *
@@ -129,7 +129,7 @@ class Config extends events {
      * @version 0.1.0
      *
      * @public
-     * @memberof Config#
+     * @memberof Config
      * @member {Object} payload
      * @param {!T} newPayload Newest payload to setup
      * @desc Set a new payload Object
@@ -180,7 +180,7 @@ class Config extends events {
      * @async
      * @method read
      * @desc Read the configuration file (And optionaly apply a default payload value if the file doesn't exist)
-     * @memberof Config#
+     * @memberof Config
      * @param {T=} defaultPayload Optional default payload (if the file doesn't exist on the disk).
      * @return {Promise<this>}
      *
@@ -297,7 +297,7 @@ class Config extends events {
      * @public
      * @method setupAutoReload
      * @desc Setup configuration autoReload
-     * @memberof Config#
+     * @memberof Config
      * @return {Boolean}
      *
      * @fires watcherInitialized
@@ -349,7 +349,7 @@ class Config extends events {
      * @desc Get a given field of the configuration
      * @param {!String} fieldPath Path to the field (separated with dot)
      * @param {Number=} [depth=Infinity] Payload depth!
-     * @memberof Config#
+     * @memberof Config
      * @return {H}
      *
      * @throws {Error}
@@ -393,7 +393,7 @@ class Config extends events {
      * @desc Observe a given configuration key with an Observable object!
      * @param {!String} fieldPath Path to the field (separated with dot)
      * @param {!Number} [depth=Infinity] Retrieved value depth!
-     * @memberof Config#
+     * @memberof Config
      * @return {ZenObservable.ObservableLike<H>}
      *
      * @example
@@ -447,7 +447,7 @@ class Config extends events {
      * @template H
      * @method set
      * @desc Set a field in the configuration
-     * @memberof Config#
+     * @memberof Config
      * @param {!String} fieldPath Path to the field (separated with dot)
      * @param {!H} fieldValue Field value
      * @return {this}
@@ -499,7 +499,7 @@ class Config extends events {
      * @public
      * @method writeOnDisk
      * @desc Write the configuration on the Disk
-     * @memberof Config#
+     * @memberof Config
      * @returns {Promise<void>}
      *
      * @fires configWritten
@@ -532,7 +532,7 @@ class Config extends events {
      * @public
      * @method lazyWriteOnDisk
      * @desc lazy Write Configuration (write the configuration at the next loop iteration)
-     * @memberof Config#
+     * @memberof Config
      * @returns {void}
      *
      * @fires error
@@ -568,7 +568,7 @@ class Config extends events {
      * @public
      * @method close
      * @desc Close (and write on disk) the configuration (it will close the watcher and clean all active observers).
-     * @memberof Config#
+     * @memberof Config
      * @returns {Promise<void>}
      *
      * @fires close
@@ -605,7 +605,6 @@ class Config extends events {
         this.emit("close");
         this.configHasBeenRead = false;
     }
-
 }
 
 // Default JSON SPACE INDENTATION

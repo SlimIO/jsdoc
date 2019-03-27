@@ -1,270 +1,621 @@
-// Require Node.js Dependencies
+// Require Node.JS core packages
+const { parse, join } = require("path");
+const { readFile, writeFile } = require("fs").promises;
 const events = require("events");
 
-/**
- * @typedef {Object} TimeValue
- * @property {any} value
- * @property {Number} ts
- */
+// Require Third-party NPM package(s)
+const watcher = require("node-watch");
+const is = require("@slimio/is");
+const ajv = new (require("ajv"))({ useDefaults: "shared" });
+const get = require("lodash.get");
+const clonedeep = require("lodash.clonedeep");
+const set = require("lodash.set");
+const Observable = require("zen-observable");
+
+// Require Internal dependencie(s)
+const { formatAjvErrors, limitObjectDepth } = require("./utils");
+
+// Private Config Accessors
+const payload = Symbol("payload");
+const schema = Symbol("schema");
 
 /**
- * @const TimeStore
- * @type {WeakMap<TimeMap, Map<String | Symbol | Number, TimeValue>>}
- * @desc Use this to avoid memory leak when TimeMap are GC, and avoid data leak too.
- */
-const TimeStore = new WeakMap();
-
-// Symbols
-const SymInterval = Symbol("interval");
-const SymCurrKey = Symbol("currentKey");
-const SymTime = Symbol("timelife");
-
-/**
- * @func assertKey
- * @param {!(String | Symbol | Number)} key key
- * @returns {void}
+ * @class Config
+ * @classdesc Reactive JSON Config loader class
+ * @extends events
+ * @template T
  *
- * @throws {TypeError}
- */
-function assertKey(key) {
-    const tKey = typeof key;
-    if (tKey !== "string" && tKey !== "symbol" && tKey !== "number") {
-        throw new TypeError("key must be a string, a symbol or a number");
-    }
-}
-
-/**
- * @func checkInterval
- * @desc Re-schedule TimeMap interval if any keys are available!
- * @param {!TimeMap} timeMap timeMap
- * @returns {void}
- */
-function checkInterval(timeMap) {
-    const self = TimeStore.get(timeMap);
-    timeMap[SymInterval] = null;
-    timeMap[SymCurrKey] = null;
-
-    if (self.size === 0) {
-        return void 0;
-    }
-
-    // Sort elements by date (timestamp)
-    const sortedElements = [...self.entries()].sort((a, b) => b[1].ts - a[1].ts);
-    while (sortedElements.length > 0) {
-        const [key, elem] = sortedElements.pop();
-        const deltaTime = Date.now() - elem.ts;
-
-        if (deltaTime >= timeMap.timeLife) {
-            // When the key is already expired too
-            timeMap.emit("expiration", key, elem.value);
-            timeMap.delete(key);
-        }
-        else {
-            // Re-schedule timer
-            timeMap[SymCurrKey] = key;
-            timeMap[SymInterval] = setTimeout(() => {
-                timeMap.emit("expiration", key, elem.value);
-                timeMap.delete(key);
-            }, timeMap.timeLife - deltaTime);
-            break;
-        }
-    }
-
-    return void 0;
-}
-
-/**
- * @author GENTILHOMME Thomas <gentilhomme.thomas@gmail.com>
+ * @property {String} configFile Path to the configuration file
+ * @property {String} schemaFile Path to the schema configuration file
+ * @property {T} payload Configuration content
+ * @property {Boolean} createOnNoEntry
+ * @property {Boolean} autoReload
+ * @property {Boolean} writeOnSet
+ * @property {Boolean} configHasBeenRead Know if the configuration has been read at least one time
+ * @property {Boolean} autoReloadActivated Know if the autoReload is Enabled or Disabled
+ * @property {Array<Array.<string, ZenObservable.SubscriptionObserver<any>>>} subscriptionObservers
+ * @property {Number} reloadDelay delay before reloading the configuration file (in millisecond).
+ * @property {Object} defaultSchema
  *
- * @class TimeMap
- * @classdesc ECMAScript 6 Map-Like implementation with timelife keys/values.
+ * @event reload
+ *
+ * @author Thomas GENTILHOMME <gentilhomme.thomas@gmail.com>
+ * @version 0.1.0
  */
-class TimeMap extends events {
+class Config extends events {
+
     /**
+     * @version 0.1.0
+     *
      * @constructor
-     * @memberof TimeMap#
-     * @param {!Number} timeLifeMs timeLife in milliseconds
+     * @param {!String} configFilePath Absolute path to the configuration file
+     * @param {Object} [options={}] Config options
+     * @param {Boolean=} [options.createOnNoEntry=false] Create the configuration file when no entry are detected
+     * @param {Boolean=} [options.autoReload=false] Enable/Disable hot reload of the configuration file.
+     * @param {Boolean=} [options.writeOnSet=false] Write configuration on the disk after a set action
+     * @param {Object=} options.defaultSchema Optional default Schema
+     * @param {Number=} [options.reloadDelay=1000] Hot reload delay (in milliseconds)
      *
      * @throws {TypeError}
+     * @throws {Error}
      *
      * @example
-     * const map = new TimeMap(100);
-     * console.log(map.timeLife); // 100
-     * map.set("hello", "world!");
-     * setTimeout(() => {
-     *     console.log(map.has("hello")); // False
-     * }, 110);
+     * const cfgOptions = {
+     *     autoReload: true,
+     *     createOnNoEntry: true,
+     *     writeOnSet: true,
+     *     reloadDelay: 2000
+     * };
+     * const cfgM = new Config("./path/to/config.json", cfgOptions);
      */
-    constructor(timeLifeMs = TimeMap.DEFAULT_TIMELIFE_MS) {
+    constructor(configFilePath, options = Object.create(null)) {
         super();
-        if (typeof timeLifeMs !== "number") {
-            throw new TypeError("timeLifeMs must be a number");
+        if (!is.string(configFilePath)) {
+            throw new TypeError("Config.constructor->configFilePath should be typeof <string>");
+        }
+        if (!is.nullOrUndefined(options) && !is.plainObject(options)) {
+            throw new TypeError("Config.constructor->options should be instanceof Object prototype");
         }
 
-        TimeStore.set(this, new Map());
+        // Parse file and get the extension, name, dirname etc...
+        const { dir, name, ext } = parse(configFilePath);
+        if (ext !== ".json") {
+            throw new Error("Config.constructor->configFilePath - file extension should be .json");
+        }
+        this.configFile = configFilePath;
+        this.schemaFile = `${join(dir, name)}.schema.json`;
 
-        // These properties are private, that why we use Symbols as key
-        // they can still be recovered with Reflect.ownKeys()
-        Reflect.defineProperty(this, SymInterval, {
-            writable: true,
-            value: null
-        });
-        Reflect.defineProperty(this, SymCurrKey, {
-            writable: true,
-            value: null
-        });
-        Reflect.defineProperty(this, SymTime, { value: timeLifeMs });
-    }
+        // Assign default class values
+        this[payload] = Object.create(null);
+        this[schema] = null;
+        this.createOnNoEntry = is.boolean(options.createOnNoEntry) ? options.createOnNoEntry : false;
+        this.autoReload = is.boolean(options.autoReload) ? options.autoReload : false;
+        this.autoReloadActivated = false;
+        this.reloadDelay = is.number(options.reloadDelay) ? options.reloadDelay : 500;
+        this.writeOnSet = is.boolean(options.writeOnSet) ? options.writeOnSet : false;
+        this.configHasBeenRead = false;
 
-    /**
-     * @member {Number} size
-     * @desc The size accessor property returns the number of elements in the TimeMap.
-     * @memberof TimeMap#
-     */
-    get size() {
-        return TimeStore.get(this).size;
-    }
+        /** @type {Array<Array<string, ZenObservable.SubscriptionObserver<any>>>} */
+        this.subscriptionObservers = [];
 
-    /**
-     * @member {Number} timeLife
-     * @desc The timeLife accessor property return the configured time life for keys
-     * @memberof TimeMap#
-     */
-    get timeLife() {
-        return this[SymTime];
+        // Assign defaultSchema is exist!
+        if (Reflect.has(options, "defaultSchema")) {
+            if (!is.plainObject(options.defaultSchema)) {
+                throw new TypeError("Config.constructor->options defaultSchema should be instanceof Object prototype");
+            }
+            this.defaultSchema = options.defaultSchema;
+        }
     }
 
     /**
      * @version 0.1.0
      *
-     * @method set
-     * @desc The set() method adds or updates an element with a specified key and value to the TimeMap object.
-     * @memberof TimeMap#
-     * @param {!(String | Symbol | Number)} key String or Symbol key
-     * @param {*} value ant value
-     * @returns {void}
+     * @public
+     * @memberof Config#
+     * @member {Object} payload
+     * @desc Get a payload Object clone (or null if the configuration has not been read yet)
      *
-     * @throws {TypeError}
+     * @example
+     * const cfg = new Config("./path/to/config.json");
+     * await cfg.read();
+     * const configContent = cfg.payload;
+     * console.log(JSON.stringify(configContent, null, 2));
      */
-    set(key, value) {
-        assertKey(key);
-        const self = TimeStore.get(this);
-        const ts = Date.now();
-
-        const isCurrKey = this[SymCurrKey] === key;
-        if (isCurrKey || this[SymInterval] === null) {
-            if (isCurrKey) {
-                clearTimeout(this[SymInterval]);
-            }
-            else {
-                this[SymCurrKey] = key;
-            }
-            this[SymInterval] = setTimeout(() => {
-                this.emit("expiration", key, value);
-                this.delete(key);
-            }, this.timeLife);
-        }
-
-        self.set(key, { ts, value });
+    get payload() {
+        return clonedeep(this[payload]);
     }
 
     /**
      * @version 0.1.0
      *
-     * @method delete
-     * @desc Delete a given key from the Map, if key is the currentKey interval will be rescheduled!
-     * @memberof TimeMap#
-     * @param {!(String | Symbol | Number)} key key
-     * @returns {void}
+     * @public
+     * @memberof Config#
+     * @member {Object} payload
+     * @param {!T} newPayload Newest payload to setup
+     * @desc Set a new payload Object
      *
+     * @throws {Error}
      * @throws {TypeError}
      *
      * @example
-     * const map = new TimeMap(100);
-     * map.set("foo", "bar");
-     * map.set("hello", "world");
+     * const cfg = new Config("./path/to/config.json");
+     * await cfg.read();
      *
-     * setTimeout(() => map.delete("foo"), 50);
-     * setTimeout(() => {
-     *    console.log(map.has("hello")); // false
-     * }, 100);
+     * // Assign a new cfg (payload). It should match the cfg Schema (if there is any)
+     * try {
+     *     cfg.payload = {
+     *         foo: "bar"
+     *     };
+     * }
+     * catch (error) {
+     *     // handle error here!
+     * }
      */
-    delete(key) {
-        assertKey(key);
-        const self = TimeStore.get(this);
+    set payload(newPayload) {
+        if (!this.configHasBeenRead) {
+            throw new Error("Config.payload - cannot set a new payload when the config has not been read yet!");
+        }
+        if (!is.plainObject(newPayload)) {
+            throw new TypeError("Config.payload->newPayload should be typeof <Object>");
+        }
 
-        if (this[SymCurrKey] === key) {
-            clearTimeout(this[SymInterval]);
-            self.delete(key);
-            checkInterval(this);
+        /** @type {T} */
+        const tempPayload = clonedeep(newPayload);
+        if (this[schema](tempPayload) === false) {
+            const errors = formatAjvErrors(this[schema].errors);
+            const msg = `Config.payload - Failed to validate new configuration, err => ${errors}`;
+            throw new Error(msg);
+        }
+
+        this[payload] = tempPayload;
+        for (const [fieldPath, subscriptionObservers] of this.subscriptionObservers) {
+            subscriptionObservers.next(this.get(fieldPath));
+        }
+    }
+
+    /**
+     * @version 0.1.0
+     *
+     * @public
+     * @async
+     * @method read
+     * @desc Read the configuration file (And optionaly apply a default payload value if the file doesn't exist)
+     * @memberof Config#
+     * @param {T=} defaultPayload Optional default payload (if the file doesn't exist on the disk).
+     * @return {Promise<this>}
+     *
+     * @example
+     * const myConfig = new Config("./path/to/config.json", {
+     *     autoReload: true,
+     *     createOnNoEntry: true
+     * });
+     *
+     * async function main() {
+     *    await myConfig.read({
+     *        foo: "bar"
+     *    });
+     *    console.log(myConfig.payload);
+     * }
+     * main().catch(console.error);
+     */
+    async read(defaultPayload) {
+        if (!is.nullOrUndefined(defaultPayload) && !is.plainObject(defaultPayload)) {
+            throw new TypeError("defaultPayload argument should be a plain JavaScript Object!");
+        }
+
+        /** @type {T} */
+        let JSONConfig;
+        /** @type {Object} */
+        let JSONSchema;
+        let writeOnDisk = false;
+
+        // Verify configFile integrity!
+        if (!is.string(this.configFile)) {
+            throw new TypeError("Config.read - configFile should be typeof <string>");
+        }
+
+        // Get and parse the JSON Configuration file (if exist, else it will throw ENOENT).
+        // If he doesn't exist we replace it by the defaultPayload or the precedent loaded payload
+        try {
+            const str = await readFile(this.configFile, { encoding: "utf8" });
+            JSONConfig = JSON.parse(str);
+        }
+        catch (err) {
+            // If NodeJS Code is different from "ENOENTRY", then throw Error (only if createOnNoEntry is equal to false)
+            if (!this.createOnNoEntry || Reflect.has(err, "code") && err.code !== "ENOENT") {
+                throw err;
+            }
+
+            JSONConfig = defaultPayload ? defaultPayload : this[payload];
+
+            // Ask to write the configuration to the disk at the end..
+            writeOnDisk = true;
+        }
+
+        // Get and parse the JSON Schema file (only if he exist).
+        // If he doesn't exist we replace it with a default Schema
+        try {
+            const str = await readFile(this.schemaFile, { encoding: "utf8" });
+            JSONSchema = JSON.parse(str);
+        }
+        catch (err) {
+            // If NodeJS Code is different from "ENOENTRY", then throw Error
+            if (Reflect.has(err, "code") && err.code !== "ENOENT") {
+                throw err;
+            }
+            JSONSchema = is.nullOrUndefined(this.defaultSchema) ?
+                Config.DEFAULTSchema :
+                this.defaultSchema;
+        }
+
+        // Setup Schema
+        this[schema] = ajv.compile(JSONSchema);
+
+        if (!this.configHasBeenRead) {
+            // Cleanup closed subscription every second
+            this.cleanupTimeout = setInterval(() => {
+                for (const [fieldPath, subscriptionObservers] of this.subscriptionObservers) {
+                    if (subscriptionObservers.closed) {
+                        this.subscriptionObservers.splice(fieldPath, 1);
+                    }
+                }
+            }, 1000);
+        }
+
+        // Setup config state has "read" true
+        this.configHasBeenRead = true;
+
+        // Setup final payload
+        try {
+            this.payload = JSONConfig;
+        }
+        catch (error) {
+            this.configHasBeenRead = false;
+            throw error;
+        }
+
+        // Write the configuraton on the disk for the first time (if there is no one available!).
+        if (writeOnDisk) {
+            const autoReload = () => this.setupAutoReload();
+
+            this.once("error", () => {
+                this.removeListener("configWritten", autoReload);
+            });
+            this.once("configWritten", autoReload);
+            this.lazyWriteOnDisk();
         }
         else {
-            self.delete(key);
+            this.setupAutoReload();
         }
+
+        return this;
     }
 
     /**
      * @version 0.1.0
      *
-     * @method has
-     * @desc Returns a boolean indicating whether an element with the specified key exists or not.
-     * @memberof TimeMap#
-     * @param {String | Symbol} key key
-     * @returns {Boolean}
-     */
-    has(key) {
-        return TimeStore.get(this).has(key);
-    }
-
-    /**
-     * @version 0.1.0
+     * @public
+     * @method setupAutoReload
+     * @desc Setup configuration autoReload
+     * @memberof Config#
+     * @return {Boolean}
      *
-     * @template T
-     * @method get
-     * @desc The get() method returns a specified element from the TimeMap object.
-     * @memberof TimeMap#
-     * @param {String | Symbol} key key
-     * @returns {T}
+     * @fires watcherInitialized
+     * @fires reload
+     * @fires error
      *
      * @throws {Error}
      */
-    get(key) {
-        const self = TimeStore.get(this);
-        if (!self.has(key)) {
-            throw new Error(`Unknown key ${key}`);
+    setupAutoReload() {
+        if (!this.configHasBeenRead) {
+            throw new Error("Config.setupAutoReaload - cannot setup autoReload when the config has not been read yet!");
         }
 
-        return self.get(key).value;
+        // Return if autoReload is already equal to true.
+        if (!this.autoReload || this.autoReloadActivated) {
+            return false;
+        }
+
+        const watcherOptions = { delay: this.reloadDelay };
+        this.watcher = watcher(this.configFile, watcherOptions, async() => {
+            try {
+                if (!this.configHasBeenRead) {
+                    return;
+                }
+                await this.read();
+                this.emit("reload");
+            }
+            catch (err) {
+                this.emit("error", err);
+            }
+        });
+        this.autoReloadActivated = true;
+
+        /**
+         * @event watcherInitialized
+         * @type {void}
+         */
+        this.emit("watcherInitialized");
+
+        return true;
     }
 
     /**
      * @version 0.1.0
      *
-     * @method clear
-     * @desc Clear internal timer and internal data. Everything will be reset.
-     * @memberof TimeMap#
-     * @returns {void}
+     * @public
+     * @template H
+     * @method get
+     * @desc Get a given field of the configuration
+     * @param {!String} fieldPath Path to the field (separated with dot)
+     * @param {Number=} [depth=Infinity] Payload depth!
+     * @memberof Config#
+     * @return {H}
+     *
+     * @throws {Error}
+     * @throws {TypeError}
+     *
+     * @example
+     * const myConfig = new Config("./path/to/config.json", {
+     *     createOnNoEntry: true
+     * });
+     *
+     * async function main() {
+     *    await myConfig.read({
+     *        foo: "bar"
+     *    });
+     *    const value = myConfig.get("path.to.key");
+     * }
+     * main().catch(console.error);
      */
-    clear() {
-        if (this[SymInterval] !== null) {
-            clearTimeout(this[SymInterval]);
+    get(fieldPath, depth = Infinity) {
+        if (!this.configHasBeenRead) {
+            throw new Error("Config.get - Unable to get a key, the configuration has not been initialized yet!");
+        }
+        if (!is.string(fieldPath)) {
+            throw new TypeError("Config.get->fieldPath should be typeof <string>");
         }
 
-        this[SymCurrKey] = null;
-        TimeStore.set(this, new Map());
+        let ret = get(this.payload, fieldPath);
+        if (Number.isFinite(ret)) {
+            ret = limitObjectDepth(ret, depth);
+        }
+
+        return ret;
     }
 
     /**
-     * @method keys
-     * @desc Return all keys
-     * @memberof TimeMap#
-     * @returns {IterableIterator<String | Symbol | Number>}
+     * @version 0.1.0
+     *
+     * @public
+     * @template H
+     * @method observableOf
+     * @desc Observe a given configuration key with an Observable object!
+     * @param {!String} fieldPath Path to the field (separated with dot)
+     * @param {!Number} [depth=Infinity] Retrieved value depth!
+     * @memberof Config#
+     * @return {ZenObservable.ObservableLike<H>}
+     *
+     * @example
+     * const myConfig = new Config("./config.json", {
+     *     autoReload: true,
+     *     createOnNoEntry: true
+     * });
+     * const { writeFile } = require("fs");
+     * const { promisify } = require("util");
+     *
+     * // Promisify fs.writeFile
+     * const asyncwriteFile = promisify(writeFile);
+     *
+     * async function main() {
+     *    await myConfig.read({
+     *        foo: "bar"
+     *    });
+     *
+     *    // Observe initial and futur value(s) of foo
+     *    myConfig.observableOf("foo").subscribe(console.log);
+     *
+     *    // Re-write local config file
+     *    await asyncwriteFile("./config.json", JSON.stringify(
+     *      { foo: "world!" }, null, 4
+     *    ));
+     * }
+     * main().catch(console.error);
      */
-    keys() {
-        return TimeStore.get(this).keys();
+    observableOf(fieldPath, depth = Infinity) {
+        if (!is.string(fieldPath)) {
+            throw new TypeError("Config.observableOf->fieldPath should be typeof <string>");
+        }
+
+        /**
+         * Retrieve the field value first
+         * @type {H}
+         */
+        const fieldValue = this.get(fieldPath, depth);
+
+        return new Observable((observer) => {
+            // Send it as first Observed value!
+            observer.next(fieldValue);
+            this.subscriptionObservers.push([fieldPath, observer]);
+        });
     }
+
+    /**
+     * @version 0.1.0
+     *
+     * @public
+     * @template H
+     * @method set
+     * @desc Set a field in the configuration
+     * @memberof Config#
+     * @param {!String} fieldPath Path to the field (separated with dot)
+     * @param {!H} fieldValue Field value
+     * @return {this}
+     *
+     * @throws {Error}
+     * @throws {TypeError}
+     *
+     * @example
+     * const myConfig = new Config("./config.json", {
+     *     createOnNoEntry: true,
+     *     // writeOnSet: true
+     * });
+     *
+     * async function main() {
+     *    await myConfig.read({
+     *        foo: "bar"
+     *    });
+     *
+     *    // Set a new value for foo
+     *    myConfig.set("foo", "hello world!");
+     *
+     *    // Write on disk the configuration
+     *    await myConfig.writeOnDisk();
+     * }
+     * main().catch(console.error);
+     */
+    set(fieldPath, fieldValue) {
+        if (!this.configHasBeenRead) {
+            throw new Error("Config.set - Unable to set a key, the configuration has not been initialized yet!");
+        }
+        if (!is.string(fieldPath)) {
+            throw new TypeError("Config.set->fieldPath should be typeof <string>");
+        }
+
+        // Setup the new cfg by using the getter/setter payload
+        this.payload = set(this.payload, fieldPath, fieldValue);
+
+        // If writeOnSet option is actived, writeOnDisk at the next loop iteration (lazy)
+        if (this.writeOnSet) {
+            this.lazyWriteOnDisk();
+        }
+
+        return this;
+    }
+
+    /**
+     * @version 0.1.0
+     *
+     * @public
+     * @method writeOnDisk
+     * @desc Write the configuration on the Disk
+     * @memberof Config#
+     * @returns {Promise<void>}
+     *
+     * @fires configWritten
+     * @throws {Error}
+     *
+     * @example
+     * // Config can be created with the option `writeOnSet` that enable cfg auto-writing on disk after every set!
+     * const cfg = new Config("./path/to/config.json");
+     * await cfg.read();
+     * cfg.set("field.path", "value");
+     * await cfg.writeOnDisk();
+     */
+    async writeOnDisk() {
+        if (!this.configHasBeenRead) {
+            throw new Error("Config.writeOnDisk - Cannot write unreaded configuration on the disk");
+        }
+
+        await writeFile(this.configFile, JSON.stringify(this[payload], null, Config.STRINGIFY_SPACE));
+
+        /**
+         * @event configWrited
+         * @type {void}
+         */
+        this.emit("configWritten");
+    }
+
+    /**
+     * @version 0.5.0
+     *
+     * @public
+     * @method lazyWriteOnDisk
+     * @desc lazy Write Configuration (write the configuration at the next loop iteration)
+     * @memberof Config#
+     * @returns {void}
+     *
+     * @fires error
+     * @throws {Error}
+     *
+     * @example
+     * const cfg = new Config("./path/to/config.json");
+     * await cfg.read();
+     * cfg.set("field.path", "value");
+     * cfg.on("configWritten", () => {
+     *     console.log("Configuration written on the local disk!");
+     * });
+     * cfg.lazyWriteOnDisk();
+     */
+    lazyWriteOnDisk() {
+        if (!this.configHasBeenRead) {
+            throw new Error("Config.lazyWriteOnDisk - Cannot lazy write unreaded configuration on the disk");
+        }
+
+        setImmediate(async() => {
+            try {
+                await this.writeOnDisk();
+            }
+            catch (error) {
+                this.emit("error", error);
+            }
+        });
+    }
+
+    /**
+     * @version 0.1.0
+     *
+     * @public
+     * @method close
+     * @desc Close (and write on disk) the configuration (it will close the watcher and clean all active observers).
+     * @memberof Config#
+     * @returns {Promise<void>}
+     *
+     * @fires close
+     * @throws {Error}
+     *
+     * @example
+     * const cfg = new Config("./path/to/config.json");
+     * await cfg.read();
+     * await cfg.close();
+     */
+    async close() {
+        if (!this.configHasBeenRead) {
+            throw new Error("Config.close - Cannot close unreaded configuration");
+        }
+
+        // Write the Configuration on the disk to be safe
+        await this.writeOnDisk();
+
+        // Close sys hook watcher
+        if (this.autoReloadActivated) {
+            this.watcher.close();
+            this.autoReloadActivated = false;
+        }
+
+        // Complete all observers
+        for (const [fieldPath, subscriptionObservers] of this.subscriptionObservers) {
+            subscriptionObservers.complete();
+            this.subscriptionObservers.splice(fieldPath, 1);
+        }
+
+        // Close cleanup interval
+        clearInterval(this.cleanupTimeout);
+
+        this.emit("close");
+        this.configHasBeenRead = false;
+    }
+
 }
 
-TimeMap.DEFAULT_TIMELIFE_MS = 1000;
+// Default JSON SPACE INDENTATION
+Config.STRINGIFY_SPACE = 4;
 
-module.exports = TimeMap;
+// Default JSON Schema!
+Config.DEFAULTSchema = {
+    title: "CONFIG",
+    additionalProperties: true
+};
+
+// Export class
+module.exports = Config;

@@ -8,6 +8,7 @@ const jsdocExtractor = require("jsdoc-extractor");
 const C_ARROBASE = "@".charCodeAt(0);
 const C_SPACE = " ".charCodeAt(0);
 const C_EOL = "\n".charCodeAt(0);
+const C_STAR = "*".charCodeAt(0);
 const PARSE_PARAM = new Set(["param", "returns", "return", "arg", "argument", "typedef", "type", "property", "throws", "member"]);
 const STD_PARAM = new Set(["return", "returns", "throws"]);
 
@@ -48,6 +49,7 @@ function sliceTo(buf, pos, carac) {
  */
 function parseJSDocBlock(buf) {
     const ret = Object.create(null);
+    let offset = 0;
 
     for (let i = 0; i < buf.length; i++) {
         if (buf[i] !== C_ARROBASE) {
@@ -57,11 +59,16 @@ function parseJSDocBlock(buf) {
         i += bufName.length;
 
         const nameStr = bufName.toString().replace(/\n/, "");
-        const lineBuf = sliceTo(buf, i, C_EOL);
+        offset = i;
+        while (buf[offset] !== C_EOL && buf[offset] !== C_STAR) {
+            offset++;
+        }
+
+        const lineBuf = buf.slice(i + 1, offset);
         i += lineBuf.length;
         if (PARSE_PARAM.has(nameStr)) {
             const line = lineBuf.toString();
-            const result = /^\s*{(?<required>[!])?(?<type>[\w|<>,\s()*]+)}\s?(?<name>[[\w\]]+)?\s?(?<desc>.*)?/.exec(line);
+            const result = /\s*{(?<required>[!])?(?<type>[\w.|<>,\s()*]+)}\s?(?<name>[[\w\]]+)?\s?(?<desc>.*)?/.exec(line);
             if (result === null) {
                 continue;
             }
@@ -110,4 +117,4 @@ for (const block of jsdocExtractor(buf)) {
     objs.push(parseJSDocBlock(block));
 }
 console.timeEnd("parse");
-// console.log(JSON.stringify(objs, null, 4));
+console.log(JSON.stringify(objs, null, 4));

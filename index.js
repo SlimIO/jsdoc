@@ -4,6 +4,9 @@ const { readFileSync } = require("fs");
 // Require Third-party Dependencies
 const jsdocExtractor = require("jsdoc-extractor");
 
+// Require Internal
+const { sliceTo, toLowerCase, hasMember } = require("./src/utils");
+
 // CONSTANTS
 const C_ARROBASE = "@".charCodeAt(0);
 const C_SPACE = " ".charCodeAt(0);
@@ -11,38 +14,12 @@ const C_EOL = "\n".charCodeAt(0);
 const C_STAR = "*".charCodeAt(0);
 const C_ASLASH = "/".charCodeAt(0);
 
-const PARSE_PARAM = new Set(["param", "returns", "return", "arg", "argument", "typedef", "type", "property", "throws", "member"]);
-const STD_PARAM = new Set(["return", "returns", "throws"]);
-
-/**
- * @func toLowerCase
- * @param {!Buffer} buf Node.js buffer
- * @returns {Buffer}
- */
-function toLowerCase(buf) {
-    for (let i = 0; i < buf.length; i++) {
-        const char = buf[i];
-        buf[i] = char < 65 || char > 90 ? char : char + 32;
-    }
-
-    return buf;
-}
-
-/**
- * @func sliceTo
- * @param {!Buffer} buf Node.js buffer
- * @param {!Number} pos start position
- * @param {!Number} carac char code
- * @returns {Buffer}
- */
-function sliceTo(buf, pos, carac) {
-    let offset = pos;
-    while (buf[offset] !== carac) {
-        offset++;
-    }
-
-    return buf.slice(pos + 1, offset);
-}
+const PARSE_PARAM = new Set([
+    "param", "returns", "return", "arg", "argument", "typedef", "type", "property", "throws", "member"
+]);
+const STD_PARAM = new Set([
+    "return", "returns", "throws"
+]);
 
 /**
  * @func parseJSDocBlock
@@ -124,20 +101,6 @@ function parseJSDocBlock(buf) {
     return ret;
 }
 
-function hasMember(block) {
-    if (Reflect.has(block, "namespace")) {
-        return [true, "namespace"];
-    }
-    if (Reflect.has(block, "class")) {
-        return [true, "class"];
-    }
-    if (Reflect.has(block, "module")) {
-        return [true, "module"];
-    }
-
-    return [false, null];
-}
-
 /**
  * @func linkJSDocBlocks
  * @param {Array<any>} blocks blocks
@@ -185,6 +148,6 @@ const objs = [];
 for (const block of jsdocExtractor(buf)) {
     objs.push(parseJSDocBlock(block));
 }
-console.timeEnd("parse");
 const ret = linkJSDocBlocks(objs);
+console.timeEnd("parse");
 console.log(JSON.stringify(ret, null, 4));

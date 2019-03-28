@@ -56,7 +56,8 @@ function parseJSDocBlock(buf) {
         i += lineBuf.length;
         if (PARSE_PARAM.has(nameStr)) {
             const line = lineBuf.toString();
-            const result = /\s*{(?<required>[!])?(?<type>[\w.|<>,\s()*]+)}\s?(?<name>[[\w\]]+)?\s?(?<desc>.*)?/.exec(line);
+            // eslint-disable-next-line
+            const result = /\s*{(?<rd>[!])?(?<type>[\w.|<>,\s()*]+)?(?<opt>=)?}\s?\[?(?<name>[\w]+)?=?(?<dV>[\w"'{}:]+)?\]?\s?(?<desc>.*)?/.exec(line);
             if (result === null) {
                 continue;
             }
@@ -66,11 +67,13 @@ function parseJSDocBlock(buf) {
                 toAssign = result.groups.type || "";
             }
             else {
-                const required = result.groups.required || false;
+                const required = result.groups.rd || (result.groups.opt || false);
                 toAssign = {
-                    required: required === "!" ? true : required,
+                    required: required === "!",
+                    opt: required === "=",
                     desc: result.groups.desc || "",
                     type: result.groups.type || "",
+                    defaultValue: result.groups.dV || null,
                     name: (result.groups.name || "").toLowerCase()
                 };
             }

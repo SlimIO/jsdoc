@@ -1,11 +1,11 @@
 // Require Node.js Dependencies
-const { readFileSync } = require("fs");
+const { readFile } = require("fs").promises;
 
 // Require Third-party Dependencies
 const jsdocExtractor = require("jsdoc-extractor");
 
 // Require Internal
-const { sliceTo, toLowerCase, hasMember } = require("./src/utils");
+const { sliceTo, toLowerCase, hasMember, getJavascriptFiles } = require("./src/utils");
 
 // CONSTANTS
 const C_ARROBASE = "@".charCodeAt(0);
@@ -141,13 +141,23 @@ function linkJSDocBlocks(blocks) {
     return ret;
 }
 
-const buf = readFileSync("./temp/beta.js");
+/**
+ * @async
+ * @func getJSDoc
+ * @param {!String} dir root directory to scan
+ * @returns {Promise<Object>}
+ */
+async function getJSDoc(dir) {
+    const ret = Object.create(null);
 
-console.time("parse");
-const objs = [];
-for (const block of jsdocExtractor(buf)) {
-    objs.push(parseJSDocBlock(block));
+    for await (const jsFile of getJavascriptFiles(dir)) {
+        const buf = await readFile(jsFile);
+        const blocks = [...jsdocExtractor(buf)].map((block) => parseJSDocBlock(block));
+
+        ret[jsFile] = linkJSDocBlocks(blocks);
+    }
+
+    return ret;
 }
-const ret = linkJSDocBlocks(objs);
-console.timeEnd("parse");
-console.log(JSON.stringify(ret, null, 4));
+
+module.exports = getJSDoc;

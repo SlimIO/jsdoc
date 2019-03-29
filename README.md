@@ -19,10 +19,15 @@ $ yarn add @slimio/jsdoc
 ```
 
 ## Usage example
-TBC
+```js
+const jsdoc = require("@slimio/jsdoc");
 
-## API
-TBC
+async function main() {
+    const response = await jsdoc(process.cwd());
+    console.log(JSON.stringify(response, null, 2));
+}
+main().catch(console.error);
+```
 
 ## License
 MIT

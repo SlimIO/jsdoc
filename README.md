@@ -30,6 +30,9 @@ async function main() {
 main().catch(console.error);
 ```
 
+## API
+TBC
+
 ## Examples
 
 <details><summary>Orphans</summary>

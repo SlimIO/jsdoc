@@ -14,7 +14,12 @@
         "type": "git",
         "url": "git+https://github.com/SlimIO/jsdoc.git"
     },
-    "keywords": [],
+    "keywords": [
+        "jsdoc",
+        "parser",
+        "linker",
+        "generator"
+    ],
     "author": "SlimIO",
     "license": "MIT",
     "bugs": {

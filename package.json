@@ -22,7 +22,7 @@
     },
     "homepage": "https://github.com/SlimIO/jsdoc#readme",
     "dependencies": {
-        "jsdoc-extractor": "^2.0.0"
+        "jsdoc-extractor": "^2.1.0"
     },
     "devDependencies": {
         "@commitlint/cli": "^7.5.2",

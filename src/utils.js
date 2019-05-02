@@ -20,9 +20,9 @@ const EXCLUDE_DIRS = new Set(["node_modules", "test", "tests", "coverage", ".vsc
  * @returns {Buffer}
  */
 function toLowerCase(buf) {
-    for (let i = 0; i < buf.length; i++) {
-        const char = buf[i];
-        buf[i] = char < 65 || char > 90 ? char : char + 32;
+    for (let id = 0; id < buf.length; id++) {
+        const char = buf[id];
+        buf[id] = char < 65 || char > 90 ? char : char + 32;
     }
 
     return buf;

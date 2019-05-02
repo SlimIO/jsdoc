@@ -31,29 +31,29 @@ function parseJSDocBlock(buf) {
     let offset = 0;
     let multiLine = null;
 
-    for (let i = 0; i < buf.length; i++) {
+    for (let id = 0; id < buf.length; id++) {
         // eslint-disable-next-line
-        if (multiLine !== null && (buf[i] === C_ARROBASE || (buf[i - 1] === C_STAR && buf[i] === C_ASLASH))) {
-            const line = buf.slice(offset, i - 1).toString().trim().replace(/\*/g, "");
+        if (multiLine !== null && (buf[id] === C_ARROBASE || (buf[id - 1] === C_STAR && buf[id] === C_ASLASH))) {
+            const line = buf.slice(offset, id - 1).toString().trim().replace(/\*/g, "");
             ret[multiLine] = line === "" ? true : line;
             multiLine = null;
         }
 
-        if (buf[i] !== C_ARROBASE) {
+        if (buf[id] !== C_ARROBASE) {
             continue;
         }
 
-        const bufName = toLowerCase(sliceTo(buf, i, C_SPACE));
-        i += bufName.length;
+        const bufName = toLowerCase(sliceTo(buf, id, C_SPACE));
+        id += bufName.length;
 
         const nameStr = bufName.toString().replace(/\n/, "");
-        offset = i;
+        offset = id;
         while (buf[offset] !== C_EOL && buf[offset] !== C_STAR) {
             offset++;
         }
 
-        const lineBuf = buf.slice(i + 1, offset);
-        i += lineBuf.length;
+        const lineBuf = buf.slice(id + 1, offset);
+        id += lineBuf.length;
         if (PARSE_PARAM.has(nameStr)) {
             const line = lineBuf.toString();
             // eslint-disable-next-line
@@ -92,7 +92,7 @@ function parseJSDocBlock(buf) {
             }
         }
         else if (nameStr === "example" || nameStr === "desc") {
-            offset = i + 1;
+            offset = id + 1;
             multiLine = nameStr;
         }
         else {

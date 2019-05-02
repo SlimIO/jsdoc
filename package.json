@@ -1,6 +1,6 @@
 {
     "name": "@slimio/jsdoc",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "JSDoc Generator for SlimIO Projects",
     "main": "index.js",
     "scripts": {

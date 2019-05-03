@@ -148,23 +148,23 @@ function linkJSDocBlocks(blocks) {
  * @async
  * @func getJSDoc
  * @param {!String} dir root directory to scan
- * @param {String[]} [exclude] file to exclude
+ * @param {String[]} [include] file to include
  * @returns {Promise<Object>}
  *
  * @throws {TypeError}
  */
-async function getJSDoc(dir, exclude = []) {
+async function getJSDoc(dir, include = []) {
     if (typeof dir !== "string") {
         throw new TypeError("dir must be a string");
     }
-    if (!Array.isArray(exclude)) {
-        throw new TypeError("exclude must be instanceof Array");
+    if (!Array.isArray(include)) {
+        throw new TypeError("include must be instanceof Array");
     }
-    const skip = new Set(exclude);
+    const files = new Set(include);
     const ret = Object.create(null);
 
     for await (const jsFile of getJavascriptFiles(dir)) {
-        if (skip.has(jsFile)) {
+        if (files.size > 0 && !files.has(jsFile)) {
             continue;
         }
         const buf = await readFile(jsFile);

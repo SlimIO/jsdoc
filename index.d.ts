@@ -14,7 +14,7 @@ declare namespace jsdoc {
     }
 }
 
-declare function jsdoc(dir: string): Promise<jsdoc.response>;
+declare function jsdoc(dir: string, include?: string[]): Promise<jsdoc.response>;
 
 export as namespace jsdoc;
 export = jsdoc;

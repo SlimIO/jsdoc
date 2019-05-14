@@ -3,177 +3,172 @@ const { readFile } = require("fs").promises;
 
 // Require Third-party Dependencies
 const jsdocExtractor = require("jsdoc-extractor");
+const { scan, TOKENS } = require("jsdoc-tokenizer");
 
 // Require Internal
-const { sliceTo, toLowerCase, hasMember, getJavascriptFiles } = require("./src/utils");
+const { getJavascriptFiles } = require("./src/utils");
 
 // CONSTANTS
-const C_ARROBASE = "@".charCodeAt(0);
-const C_SPACE = " ".charCodeAt(0);
-const C_EOL = "\n".charCodeAt(0);
-const C_STAR = "*".charCodeAt(0);
-const C_ASLASH = "/".charCodeAt(0);
+const CHAR_EXCLA = "!".charCodeAt(0);
+const CHAR_EQUAL = "=".charCodeAt(0);
+const CHAR_SPACE = " ".charCodeAt(0);
+const CHAR_EOL = "\n".charCodeAt(0);
 
-const PARSE_PARAM = new Set([
-    "param", "returns", "return", "arg", "argument", "typedef", "type", "property", "throws", "member"
+const TYPES = new Map([
+    ["{".charCodeAt(0), { close: "}".charCodeAt(0), name: "type" }],
+    ["}".charCodeAt(0), { close: CHAR_EOL, name: "arg" }],
+    ["]".charCodeAt(0), { close: CHAR_EOL, name: "arg" }],
+    ["[".charCodeAt(0), { close: "]".charCodeAt(0), name: "argdef" }]
 ]);
-const STD_PARAM = new Set([
-    "return", "returns", "throws"
-]);
+
+const LIGHT_TYPE = new Set(["throws", "typedef"]);
 
 /**
- * @func parseJSDocBlock
+ * @func parseJSDoc
  * @param {!Buffer} buf Node.js buffer
  * @returns {any}
  */
-function parseJSDocBlock(buf) {
+function parseJSDoc(buf) {
     const ret = Object.create(null);
-    let offset = 0;
-    let multiLine = null;
+    let currKeyword = null;
+    let currType = null;
+    let currLinker = null;
+    let lastSignChar = 0;
+    let lastTypeName = null;
+    let lastToken = null;
+    let checkForMultipleLine = false;
 
-    for (let id = 0; id < buf.length; id++) {
-        // eslint-disable-next-line
-        if (multiLine !== null && (buf[id] === C_ARROBASE || (buf[id - 1] === C_STAR && buf[id] === C_ASLASH))) {
-            const line = buf.slice(offset, id - 1).toString().trim().replace(/\*/g, "");
-            ret[multiLine] = line === "" ? true : line;
-            multiLine = null;
-        }
+    for (const [token, chars] of scan(buf)) {
+        switch (token) {
+            case TOKENS.SYMBOL: {
+                checkForMultipleLine = chars === CHAR_EOL && lastToken === TOKENS.IDENTIFIER;
+                lastSignChar = chars;
 
-        if (buf[id] !== C_ARROBASE) {
-            continue;
-        }
-
-        const bufName = toLowerCase(sliceTo(buf, id, C_SPACE));
-        id += bufName.length;
-
-        const nameStr = bufName.toString().replace(/\n/, "");
-        offset = id;
-        while (buf[offset] !== C_EOL && buf[offset] !== C_STAR) {
-            offset++;
-        }
-
-        const lineBuf = buf.slice(id + 1, offset);
-        id += lineBuf.length;
-        if (PARSE_PARAM.has(nameStr)) {
-            const line = lineBuf.toString();
-            // eslint-disable-next-line
-            const result = /\s*{(?<rd>[!])?(?<type>[\w.|<>,\s()*]+)?(?<opt>=)?}\s?\[?(?<name>[\w]+)?=?(?<dV>[\w"'{}:]+)?\]?\s?(?<desc>.*)?/.exec(line);
-            if (result === null) {
-                continue;
-            }
-
-            let toAssign = null;
-            if (STD_PARAM.has(nameStr)) {
-                toAssign = result.groups.type || "";
-            }
-            else {
-                const required = result.groups.rd || (result.groups.opt || false);
-                toAssign = {
-                    required: required === "!",
-                    opt: required === "=",
-                    desc: result.groups.desc || "",
-                    type: result.groups.type || "",
-                    defaultValue: result.groups.dV || null,
-                    name: (result.groups.name || "").toLowerCase()
-                };
-            }
-
-            if (Reflect.has(ret, nameStr)) {
-                if (Array.isArray(ret[nameStr])) {
-                    ret[nameStr].push(toAssign);
+                if (currType !== null && currType.close === chars) {
+                    lastTypeName = currType.name;
+                    currType = null;
                 }
-                else {
-                    const arr = [ret[nameStr], toAssign];
-                    ret[nameStr] = arr;
+
+                if (TYPES.has(chars)) {
+                    currType = TYPES.get(chars);
                 }
+                break;
             }
-            else {
-                ret[nameStr] = toAssign;
+
+            case TOKENS.KEYWORD: {
+                checkForMultipleLine = false;
+                if (currKeyword !== null && !Reflect.has(ret, currKeyword)) {
+                    ret[currKeyword] = { value: true };
+                }
+                currKeyword = String.fromCharCode(...chars.slice(1));
+                break;
+            }
+
+            case TOKENS.IDENTIFIER: {
+                if (currKeyword === null) {
+                    break;
+                }
+                if (currType === null) {
+                    if (Reflect.has(ret, currKeyword)) {
+                        if (checkForMultipleLine) {
+                            const strValue = String.fromCharCode(...chars);
+                            ret[currKeyword].value = ret[currKeyword].value.concat(`\n${strValue}`);
+                        }
+                        checkForMultipleLine = false;
+                    }
+                    else {
+                        ret[currKeyword] = { value: String.fromCharCode(...chars) };
+                    }
+                    break;
+                }
+
+                switch (currType.name) {
+                    case "type": {
+                        // Note: force optional to false if required
+                        const required = chars[0] === CHAR_EXCLA ? true : chars[chars.length - 1] === CHAR_EQUAL;
+                        const codes = chars.filter((char) => char !== CHAR_EQUAL && char !== CHAR_EXCLA);
+
+                        const isLightNode = LIGHT_TYPE.has(currKeyword);
+                        const value = String.fromCharCode(...codes);
+                        const obj = isLightNode ? { value } : { value, default: null, required };
+
+                        if (Reflect.has(ret, currKeyword)) {
+                            const isArray = Array.isArray(ret[currKeyword]);
+                            if (isArray) {
+                                ret[currKeyword].push(obj);
+                            }
+                            else {
+                                ret[currKeyword] = [ret[currKeyword], obj];
+                            }
+                        }
+                        else {
+                            ret[currKeyword] = obj;
+                        }
+
+                        currLinker = obj;
+                        break;
+                    }
+
+                    case "arg": {
+                        let offset = 0;
+                        while (chars[offset] !== CHAR_SPACE && offset < chars.length) {
+                            offset++;
+                        }
+
+                        if (lastTypeName === "argdef") {
+                            if (chars.length !== 0) {
+                                currLinker.desc = String.fromCharCode(...chars).trim();
+                            }
+                        }
+                        else {
+                            const u8Desc = chars.slice(offset + 1);
+                            currLinker.name = String.fromCharCode(...chars.slice(0, offset));
+                            if (u8Desc.length !== 0) {
+                                currLinker.desc = String.fromCharCode(...u8Desc).trim();
+                            }
+                        }
+                        break;
+                    }
+
+                    case "argdef": {
+                        const valueStr = String.fromCharCode(...chars);
+                        currLinker[lastSignChar === CHAR_EQUAL ? "default" : "name"] = valueStr;
+                        break;
+                    }
+                }
+
+                break;
             }
         }
-        else if (nameStr === "example" || nameStr === "desc") {
-            offset = id + 1;
-            multiLine = nameStr;
-        }
-        else {
-            const line = lineBuf.toString().trim().normalize();
-            ret[nameStr] = line === "" ? true : line;
-        }
+
+        lastToken = token;
     }
 
     return ret;
 }
 
-/**
- * @func linkJSDocBlocks
- * @param {Array<any>} blocks blocks
- * @returns {Object}
- */
-function linkJSDocBlocks(blocks) {
-    if (!Array.isArray(blocks)) {
-        throw new TypeError("blocks must be instanceof Array");
-    }
-
-    const ret = Object.create(null);
-    ret._orphans = [];
-    const link = new Set();
-
-    for (const block of blocks) {
-        const [has, name] = hasMember(block);
-        if (has) {
-            const memberName = block[name].toLowerCase();
-            block.members = [];
-            ret[memberName] = block;
-            link.add(memberName);
-            continue;
-        }
-
-        sub: if (Reflect.has(block, "memberof")) {
-            const memberOf = block.memberof.toLowerCase();
-            if (!link.has(memberOf)) {
-                break sub;
-            }
-
-            ret[memberOf].members.push(block);
-            continue;
-        }
-
-        ret._orphans.push(block);
-    }
-
-    return ret;
+function groupData(blocks) {
+    // DO WORK HERE!
 }
 
 /**
  * @async
- * @func getJSDoc
- * @param {!String} dir root directory to scan
- * @param {String[]} [include] file to include
- * @returns {Promise<Object>}
+ * @generator
+ * @func parseFile
+ * @param {!String} location file location
+ * @returns {AsyncIterableIterator<any>}
  *
  * @throws {TypeError}
  */
-async function getJSDoc(dir, include = []) {
-    if (typeof dir !== "string") {
-        throw new TypeError("dir must be a string");
+async function* parseFile(location) {
+    if (typeof location !== "string") {
+        throw new TypeError("location must be a string");
     }
-    if (!Array.isArray(include)) {
-        throw new TypeError("include must be instanceof Array");
+    const buf = await readFile(location);
+
+    for (const [doc] of jsdocExtractor(buf)) {
+        yield parseJSDoc(doc);
     }
-    const files = new Set(include);
-    const ret = Object.create(null);
-
-    for await (const jsFile of getJavascriptFiles(dir)) {
-        if (files.size > 0 && !files.has(jsFile)) {
-            continue;
-        }
-        const buf = await readFile(jsFile);
-        const blocks = [...jsdocExtractor(buf)].map((block) => parseJSDocBlock(block));
-
-        ret[jsFile] = linkJSDocBlocks(blocks);
-    }
-
-    return ret;
 }
 
-module.exports = getJSDoc;
+module.exports = { parseJSDoc, parseFile };

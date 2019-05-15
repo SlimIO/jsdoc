@@ -45,10 +45,64 @@ main().catch(console.error);
 ```
 
 ## API
-TBC
 
-## Examples
-TBC
+<details><summary>parseJSDoc(buf: Buffer): Block</summary>
+<br />
+
+Parse a JSDoc block (in Buffer format). Return an Object described by the following interface:
+```ts
+interface Descriptor {
+    value: any;
+    name?: string;
+    desc?: string;
+    default?: any;
+    required?: boolean;
+}
+
+interface Block {
+    [key: string]: Descriptor | Descriptor[];
+}
+```
+
+Take the following example:
+```js
+const block = parseJSDoc(Buffer.from(`/**
+@const name
+@type {String}
+**/`));
+console.log(block.const.value); // name
+console.log(block.type.value); // String
+```
+</details>
+
+<details><summary>parseFile(location: string): AsyncIterableIterator< Block ></summary>
+<br />
+
+This method will read a given file, extract and parse all JSDoc blocks. The method return a Asynchronous iterator to be able to stop the parsing at any time.
+```js
+const jsdoc = [];
+const iterator = parseFile("./yourFile.js");
+for await (const block of iterator) {
+    jsdoc.push(block);
+}
+```
+</details>
+
+<details><summary>groupData(blocks: Block[]): LinkedBlock</summary>
+<br />
+
+Link (group) blocks by **namespace**, **modules** or **class** (Else the block will be handled as an orphan). The method return an Object described by the following interface:
+
+```ts
+interface LinkedBlock {
+    orphans: Block[];
+    members: {
+        [name: string]: Block[];
+    }
+}
+```
+
+</details>
 
 ## License
 MIT

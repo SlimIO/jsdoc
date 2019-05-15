@@ -20,7 +20,7 @@ declare namespace jsdoc {
 
     export function groupData(blocks: Block[]): LinkedBlock;
     export function parseJSDoc(buf: Buffer): Block;
-    export function parseFile(location: string): AsyncIterableIterator<Block[]>;
+    export function parseFile(location: string): AsyncIterableIterator<Block>;
 }
 
 export as namespace jsdoc;

@@ -7,7 +7,24 @@ const { readdir, stat } = require("fs").promises;
 const { join, extname } = require("path");
 
 // CONSTANTS
+const MEMBER_PARAM = new Set(["class", "module", "namespace"]);
 const EXCLUDE_DIRS = new Set(["node_modules", "test", "tests", "coverage", ".vscode", ".git"]);
+
+/**
+ * @func hasMember
+ * @memberof Utils
+ * @param {!Object} block JSDoc block
+ * @returns {[Boolean, String]}
+ */
+function hasMember(block) {
+    for (const name of MEMBER_PARAM) {
+        if (Reflect.has(block, name)) {
+            return [true, name];
+        }
+    }
+
+    return [false, null];
+}
 
 /**
  * @async
@@ -41,4 +58,4 @@ async function* getJavascriptFiles(dir) {
     }
 }
 
-module.exports = { toLowerCase, sliceTo, hasMember, getJavascriptFiles };
+module.exports = { getJavascriptFiles, hasMember };

@@ -5,8 +5,8 @@ const { readFile } = require("fs").promises;
 const jsdocExtractor = require("jsdoc-extractor");
 const { scan, TOKENS } = require("jsdoc-tokenizer");
 
-// Require Internal
-const { getJavascriptFiles } = require("./src/utils");
+// Require Internal Dependencies
+const { hasMember } = require("./src/utils");
 
 // CONSTANTS
 const CHAR_EXCLA = "!".charCodeAt(0);
@@ -21,7 +21,7 @@ const TYPES = new Map([
     ["[".charCodeAt(0), { close: "]".charCodeAt(0), name: "argdef" }]
 ]);
 
-const LIGHT_TYPE = new Set(["throws", "typedef"]);
+const LIGHT_TYPE = new Set(["throws", "typedef", "return", "returns"]);
 
 /**
  * @func parseJSDoc
@@ -71,13 +71,13 @@ function parseJSDoc(buf) {
                 if (currType === null) {
                     if (Reflect.has(ret, currKeyword)) {
                         if (checkForMultipleLine) {
-                            const strValue = String.fromCharCode(...chars);
+                            const strValue = String.fromCharCode(...chars).trim();
                             ret[currKeyword].value = ret[currKeyword].value.concat(`\n${strValue}`);
                         }
                         checkForMultipleLine = false;
                     }
                     else {
-                        ret[currKeyword] = { value: String.fromCharCode(...chars) };
+                        ret[currKeyword] = { value: String.fromCharCode(...chars).trim() };
                     }
                     break;
                 }
@@ -110,22 +110,22 @@ function parseJSDoc(buf) {
                     }
 
                     case "arg": {
+                        if (lastTypeName === "argdef") {
+                            if (chars.length !== 0) {
+                                currLinker.desc = String.fromCharCode(...chars).trim();
+                            }
+                            break;
+                        }
+
                         let offset = 0;
                         while (chars[offset] !== CHAR_SPACE && offset < chars.length) {
                             offset++;
                         }
 
-                        if (lastTypeName === "argdef") {
-                            if (chars.length !== 0) {
-                                currLinker.desc = String.fromCharCode(...chars).trim();
-                            }
-                        }
-                        else {
-                            const u8Desc = chars.slice(offset + 1);
-                            currLinker.name = String.fromCharCode(...chars.slice(0, offset));
-                            if (u8Desc.length !== 0) {
-                                currLinker.desc = String.fromCharCode(...u8Desc).trim();
-                            }
+                        const u8Desc = chars.slice(offset + 1);
+                        currLinker.name = String.fromCharCode(...chars.slice(0, offset));
+                        if (u8Desc.length !== 0) {
+                            currLinker.desc = String.fromCharCode(...u8Desc).trim();
                         }
                         break;
                     }
@@ -147,8 +147,38 @@ function parseJSDoc(buf) {
     return ret;
 }
 
+/**
+ * @func groupData
+ * @param {any[]} blocks blocks
+ * @returns {any}
+ */
 function groupData(blocks) {
-    // DO WORK HERE!
+    if (!Array.isArray(blocks)) {
+        throw new TypeError("blocks must be instanceof <Array>");
+    }
+    const ret = { orphans: [], members: {} };
+
+    for (const block of blocks) {
+        const [found, name] = hasMember(block);
+        if (found) {
+            const fullName = block[name].value;
+            block.memberof = { value: fullName };
+            ret.members[fullName] = [block];
+        }
+    }
+
+    for (const block of blocks) {
+        if (Reflect.has(block, "memberof")) {
+            const name = block.memberof.value.replace(/#/, "");
+            if (Reflect.has(ret.members, name)) {
+                ret.members[name].push(block);
+                continue;
+            }
+        }
+        ret.orphans.push(block);
+    }
+
+    return ret;
 }
 
 /**
@@ -171,4 +201,4 @@ async function* parseFile(location) {
     }
 }
 
-module.exports = { parseJSDoc, parseFile };
+module.exports = { parseJSDoc, parseFile, groupData };

@@ -21,11 +21,25 @@ $ yarn add @slimio/jsdoc
 ## Usage example
 The method will search all JavaScript files at the given location to parse the inner JSDoc.
 ```js
-const jsdoc = require("@slimio/jsdoc");
+const { parseFile, groupData } = require("@slimio/jsdoc");
+
+async function getBlocks(file) {
+    const result = [];
+    for await (const block of parseFile(file)) {
+        result.push(block);
+    }
+
+    return result;
+}
 
 async function main() {
-    const response = await jsdoc(process.cwd());
-    console.log(JSON.stringify(response, null, 2));
+    const fileBlocks = [];
+    for await (const block of parseFile("./yourFile.js")) {
+        fileBlocks.push(block);
+    }
+    const finalResult = groupData(fileBlocks);
+
+    console.log(JSON.stringify(finalResult, null, 4));
 }
 main().catch(console.error);
 ```
@@ -34,78 +48,7 @@ main().catch(console.error);
 TBC
 
 ## Examples
-
-<details><summary>Orphans</summary>
-<br />
-
-Take the given JSDoc:
-```js
-/**
- * @func sayHello
- * @desc hello world
- */
-
-/**
- * @const foo
- * @type {String}
- */
-```
-
-After parsing it will produce the following object:
-```js
-{
-    "_orphans": [
-        {
-            "func": "sayHello",
-            "desc": true
-        },
-        {
-            "const": "foo",
-            "type": {
-                "required": false,
-                "opt": false,
-                "desc": "",
-                "type": "String",
-                "defaultValue": null,
-                "name": ""
-            }
-        }
-    ]
-}
-```
-</details>
-
-<details><summary>Members</summary>
-<br />
-
-Take the given JSDoc:
-```js
-/**
- * @namespace Utils
- */
-
-/**
- * @func sayHello
- * @memberof Utils
- */
-```
-
-After parsing it will produce the following object:
-```js
-{
-    "_orphans": [],
-    "utils": {
-        "namespace": "Utils",
-        "members": [
-            {
-                "func": "sayHello",
-                "memberof": "Utils"
-            }
-        ]
-    }
-}
-```
-</details>
+TBC
 
 ## License
 MIT

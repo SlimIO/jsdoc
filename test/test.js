@@ -84,11 +84,25 @@ avaTest("Assert doc 04 (typedef)", (assert) => {
     @returns {Promise<void>}
     **/`));
 
-    console.log(ret);
     assert.true(assertJSDoc(ret));
     assert.deepEqual(Object.keys(ret), ["async", "method", "property", "returns"]);
     assert.is(ret.async.value, true);
     assert.is(ret.method.value, "sayHello");
     assert.true(is.array(ret.property));
+    assert.deepEqual(ret.property, [
+        {
+            value: "String",
+            default: null,
+            required: true,
+            name: "name",
+            desc: "a given name"
+        },
+        {
+            value: "Boolean",
+            default: null,
+            required: false,
+            name: "recursive"
+        }
+    ]);
     assert.deepEqual(ret.returns, { value: "Promise<void>" });
 });

@@ -82,7 +82,10 @@ function parseJSDoc(buf) {
                 switch (currType.name) {
                     case "type": {
                         // Note: force optional to false if required
-                        const required = chars[0] === CHAR_EXCLA ? true : chars[chars.length - 1] === CHAR_EQUAL;
+                        let required = true;
+                        if (chars[0] !== CHAR_EXCLA && chars[chars.length - 1] === CHAR_EQUAL) {
+                            required = false;
+                        }
                         const codes = chars.filter((char) => char !== CHAR_EQUAL && char !== CHAR_EXCLA);
 
                         const isLightNode = LIGHT_TYPE.has(currKeyword);
@@ -129,7 +132,13 @@ function parseJSDoc(buf) {
 
                     case "argdef": {
                         const valueStr = String.fromCharCode(...chars);
-                        currLinker[lastToken === TOKENS.IDENTIFIER ? "default" : "name"] = valueStr;
+                        if (lastToken === TOKENS.IDENTIFIER) {
+                            currLinker.default = valueStr;
+                        }
+                        else {
+                            currLinker.name = valueStr;
+                            currLinker.required = false;
+                        }
                         break;
                     }
                 }

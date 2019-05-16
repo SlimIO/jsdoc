@@ -33,7 +33,6 @@ function parseJSDoc(buf) {
     let currKeyword = null;
     let currType = null;
     let currLinker = null;
-    let lastSignChar = 0;
     let lastTypeName = null;
     let lastToken = null;
     let checkForMultipleLine = false;
@@ -42,8 +41,6 @@ function parseJSDoc(buf) {
         switch (token) {
             case TOKENS.SYMBOL: {
                 checkForMultipleLine = chars === CHAR_EOL && lastToken === TOKENS.IDENTIFIER;
-                lastSignChar = chars;
-
                 if (currType !== null && currType.close === chars) {
                     lastTypeName = currType.name;
                     currType = null;
@@ -132,7 +129,7 @@ function parseJSDoc(buf) {
 
                     case "argdef": {
                         const valueStr = String.fromCharCode(...chars);
-                        currLinker[lastSignChar === CHAR_EQUAL ? "default" : "name"] = valueStr;
+                        currLinker[lastToken === TOKENS.IDENTIFIER ? "default" : "name"] = valueStr;
                         break;
                     }
                 }

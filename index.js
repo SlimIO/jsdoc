@@ -62,9 +62,6 @@ function parseJSDoc(buf) {
             }
 
             case TOKENS.IDENTIFIER: {
-                if (currKeyword === null) {
-                    break;
-                }
                 if (currType === null) {
                     if (Reflect.has(ret, currKeyword)) {
                         if (checkForMultipleLine) {

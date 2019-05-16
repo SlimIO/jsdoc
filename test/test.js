@@ -64,13 +64,14 @@ avaTest("Assert doc 03 (example & multiple properties)", (assert) => {
     const ret = parseJSDoc(Buffer.from(`/**
     @throws {TypeError}
     @throws {Error}
+    @throws {SyntaxError}
     @example
     const str = "hello world!";
     console.log(str);
     **/`));
 
     assert.true(assertJSDoc(ret));
-    assert.deepEqual(Object.keys(ret), ["throws", "example"]);
+    assert.deepEqual(Object.keys(ret), ["throws", "example", "SyntaxError"]);
     assert.is(ret.example.value, "const str = \"hello world!\";    console.log(str);");
     assert.deepEqual(ret.throws, [{ value: "TypeError" }, { value: "Error" }]);
 });

@@ -71,9 +71,9 @@ avaTest("Assert doc 03 (example & multiple properties)", (assert) => {
     **/`));
 
     assert.true(assertJSDoc(ret));
-    assert.deepEqual(Object.keys(ret), ["throws", "example", "SyntaxError"]);
+    assert.deepEqual(Object.keys(ret), ["throws", "example"]);
     assert.is(ret.example.value, "const str = \"hello world!\";    console.log(str);");
-    assert.deepEqual(ret.throws, [{ value: "TypeError" }, { value: "Error" }]);
+    assert.deepEqual(ret.throws, [{ value: "TypeError" }, { value: "Error" }, { value: "SyntaxError" }]);
 });
 
 avaTest("Assert doc 04 (typedef)", (assert) => {

@@ -95,5 +95,12 @@ interface LinkedBlock {
 
 </details>
 
+## Dependencies
+
+|Name|Refactoring|Security Risk|Usage|
+|---|---|---|---|
+|[jsdoc-extractor](https://github.com/fraxken/jsdoc-extractor#readme)|⚠️Major|High|Extract JSDoc for js files|
+|[jsdoc-tokenizer](https://github.com/fraxken/jsdoc_tokenizer#readme)|⚠️Major|High|Parse JSDoc|
+
 ## License
 MIT

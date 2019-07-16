@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * @namespace Utils
  */
@@ -11,10 +13,10 @@ const MEMBER_PARAM = new Set(["class", "module", "namespace"]);
 const EXCLUDE_DIRS = new Set(["node_modules", "test", "tests", "coverage", ".vscode", ".git"]);
 
 /**
- * @func hasMember
+ * @function hasMember
  * @memberof Utils
- * @param {!Object} block JSDoc block
- * @returns {[Boolean, String]}
+ * @param {!object} block JSDoc block
+ * @returns {[boolean, string]}
  */
 function hasMember(block) {
     for (const name of MEMBER_PARAM) {
@@ -29,10 +31,10 @@ function hasMember(block) {
 /**
  * @async
  * @generator
- * @func getJavascriptFiles
+ * @function getJavascriptFiles
  * @memberof Utils
- * @param {!String} dir root directory
- * @returns {AsyncIterableIterator<String>}
+ * @param {!string} dir root directory
+ * @returns {AsyncIterableIterator<string>}
  */
 async function* getJavascriptFiles(dir) {
     const files = await readdir(dir);

@@ -1,3 +1,5 @@
+"use strict";
+
 // Require Node.js Dependencies
 const { readFile } = require("fs").promises;
 
@@ -24,7 +26,7 @@ const TYPES = new Map([
 const LIGHT_TYPE = new Set(["throws", "typedef", "return", "returns"]);
 
 /**
- * @func parseJSDoc
+ * @function parseJSDoc
  * @param {!Buffer} buf Node.js buffer
  * @returns {any}
  */
@@ -151,7 +153,7 @@ function parseJSDoc(buf) {
 }
 
 /**
- * @func groupData
+ * @function groupData
  * @param {any[]} blocks blocks
  * @returns {any}
  */
@@ -187,8 +189,8 @@ function groupData(blocks) {
 /**
  * @async
  * @generator
- * @func parseFile
- * @param {!String} location file location
+ * @function parseFile
+ * @param {!string} location file location
  * @returns {AsyncIterableIterator<any>}
  *
  * @throws {TypeError}

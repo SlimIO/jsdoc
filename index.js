@@ -162,6 +162,7 @@ function groupData(blocks) {
         throw new TypeError("blocks must be instanceof <Array>");
     }
     const ret = { orphans: [], members: {} };
+    const otherBlocks = [];
 
     for (const block of blocks) {
         const [found, name] = hasMember(block);
@@ -170,9 +171,12 @@ function groupData(blocks) {
             block.memberof = { value: fullName };
             ret.members[fullName] = [block];
         }
+        else {
+            otherBlocks.push(block);
+        }
     }
 
-    for (const block of blocks) {
+    for (const block of otherBlocks) {
         if (Reflect.has(block, "memberof")) {
             const name = block.memberof.value.replace(/#/, "");
             if (Reflect.has(ret.members, name)) {

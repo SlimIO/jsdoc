@@ -6,7 +6,7 @@
 JSDoc Generator/Parser. (It use [jsdoc-extractor](https://github.com/fraxken/jsdoc-extractor) and [jsdoc-tokenizer](https://github.com/fraxken/jsdoc-tokenizer) under the hood).
 
 ## Requirements
-- Node.js v10 or higher
+- [Node.js](https://nodejs.org/en/) v10 or higher
 
 ## Getting Started
 
@@ -99,8 +99,8 @@ interface LinkedBlock {
 
 |Name|Refactoring|Security Risk|Usage|
 |---|---|---|---|
-|[jsdoc-extractor](https://github.com/fraxken/jsdoc-extractor#readme)|⚠️Major|High|Extract JSDoc for js files|
-|[jsdoc-tokenizer](https://github.com/fraxken/jsdoc_tokenizer#readme)|⚠️Major|High|Parse JSDoc|
+|[jsdoc-extractor](https://github.com/fraxken/jsdoc-extractor#readme)|⚠️Major|Low|Extract JSDoc annotations from Javascript Files|
+|[jsdoc-tokenizer](https://github.com/fraxken/jsdoc_tokenizer#readme)|⚠️Major|Low|Parse JSDoc annotations and return Tokens|
 
 ## License
 MIT

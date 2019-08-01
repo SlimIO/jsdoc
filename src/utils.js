@@ -28,36 +28,4 @@ function hasMember(block) {
     return [false, null];
 }
 
-/**
- * @async
- * @generator
- * @function getJavascriptFiles
- * @memberof Utils
- * @param {!string} dir root directory
- * @returns {AsyncIterableIterator<string>}
- */
-async function* getJavascriptFiles(dir) {
-    const files = await readdir(dir);
-    const tDirs = [];
-
-    for (const file of files) {
-        if (extname(file) === ".js") {
-            yield join(dir, file);
-            continue;
-        }
-
-        if (EXCLUDE_DIRS.has(file)) {
-            continue;
-        }
-        tDirs.push(file);
-    }
-
-    for (const name of tDirs) {
-        const st = await stat(join(dir, name));
-        if (st.isDirectory()) {
-            yield* getJavascriptFiles(join(dir, name));
-        }
-    }
-}
-
-module.exports = { getJavascriptFiles, hasMember };
+module.exports = { hasMember };

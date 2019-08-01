@@ -6,13 +6,27 @@
     "scripts": {
         "start": "node index.js",
         "prepublishOnly": "pkg-ok",
-        "test": "cross-env psp && ava --verbose",
+        "test": "cross-env psp && jest --coverage",
         "doc": "jsdoc -c ./jsdoc.json -r -R ./README.md -P ./package.json --verbose",
         "coverage": "c8 -r=\"html\" npm test"
     },
     "repository": {
         "type": "git",
         "url": "git+https://github.com/SlimIO/jsdoc.git"
+    },
+    "jest": {
+        "collectCoverageFrom": [
+            "index.js",
+            "**/src/**/*.js"
+        ],
+        "testEnvironment": "node",
+        "testMatch": [
+            "**/test/**/*.js"
+        ],
+        "testPathIgnorePatterns": [
+            "/node_modules/",
+            "/test/fixtures/"
+        ]
     },
     "keywords": [
         "jsdoc",
@@ -42,12 +56,11 @@
         "@slimio/eslint-config": "^3.0.2",
         "@slimio/is": "^1.5.0",
         "@slimio/psp": "^0.6.0",
-        "ava": "^2.2.0",
-        "c8": "^5.0.1",
         "cross-env": "^5.2.0",
         "dotenv": "^8.0.0",
         "eslint": "^6.1.0",
         "husky": "^3.0.2",
+        "jest": "^24.8.0",
         "jsdoc": "^3.5.5",
         "pkg-ok": "^2.3.1"
     },
@@ -59,13 +72,5 @@
             "pre-push": "cross-env eslint index.js src/utils.js && npm test",
             "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
         }
-    },
-    "nyc": {
-        "check-coverage": true,
-        "per-file": false,
-        "lines": 98,
-        "statements": 98,
-        "functions": 98,
-        "branches": 90
     }
 }

@@ -1,11 +1,14 @@
 "use strict";
 
-// Require Third-party Dependencies
-const avaTest = require("ava");
+// Require Node.js Dependencies
+const { join } = require("path");
 
 // Require Internal Dependencies
-const { parseJSDoc } = require("../index");
+const { parseJSDoc, parseFile, groupData } = require("../index");
 const is = require("@slimio/is");
+
+// CONSTANTS
+const FIXTURES = join(__dirname, "fixtures");
 
 function assertJSDoc(ret) {
     if (!is.plainObject(ret)) {
@@ -31,38 +34,28 @@ function assertJSDoc(ret) {
     return true;
 }
 
-avaTest("Assert doc 01 (Simple case)", (assert) => {
+test("must parse a simple JSDoc annotation with @const & @name tag", () => {
     const ret = parseJSDoc(Buffer.from(`/**
     @const name
     @type {String}
     **/`));
 
-    assert.true(assertJSDoc(ret));
-    assert.deepEqual(Object.keys(ret), ["const", "type"]);
-    assert.is(ret.const.value, "name");
-    assert.is(ret.type.value, "String");
+    expect(assertJSDoc(ret)).toStrictEqual(true);
+    expect(ret).toMatchSnapshot();
 });
 
-avaTest("Assert doc 02 (multiline & complete property)", (assert) => {
+test("must parse a JSDoc annotation which contains multiple line @summary & a complete @property", () => {
     const ret = parseJSDoc(Buffer.from(`/**
     @summary A mutiline
     comment
     @property {String} [foo="bar"] a foo property
     **/`));
 
-    assert.true(assertJSDoc(ret));
-    assert.deepEqual(Object.keys(ret), ["summary", "property"]);
-    assert.is(ret.summary.value, "A mutiline\ncomment");
-    assert.deepEqual(ret.property, {
-        value: "String",
-        default: "\"bar\"",
-        required: false,
-        name: "foo",
-        desc: "a foo property"
-    });
+    expect(assertJSDoc(ret)).toStrictEqual(true);
+    expect(ret).toMatchSnapshot();
 });
 
-avaTest("Assert doc 03 (example & multiple properties)", (assert) => {
+test("must parse a JSDoc annotation with multiple tag & an @example", () => {
     const ret = parseJSDoc(Buffer.from(`/**
     @throws {TypeError}
     @throws {Error}
@@ -72,13 +65,11 @@ avaTest("Assert doc 03 (example & multiple properties)", (assert) => {
     console.log(str);
     **/`));
 
-    assert.true(assertJSDoc(ret));
-    assert.deepEqual(Object.keys(ret), ["throws", "example"]);
-    assert.is(ret.example.value, "const str = \"hello world!\";    console.log(str);");
-    assert.deepEqual(ret.throws, [{ value: "TypeError" }, { value: "Error" }, { value: "SyntaxError" }]);
+    expect(assertJSDoc(ret)).toStrictEqual(true);
+    expect(ret).toMatchSnapshot();
 });
 
-avaTest("Assert doc 04 (typedef)", (assert) => {
+test("must parse a JSDoc annotation of a generic class Method", () => {
     const ret = parseJSDoc(Buffer.from(`/**
     @async
     @method sayHello
@@ -87,25 +78,31 @@ avaTest("Assert doc 04 (typedef)", (assert) => {
     @returns {Promise<void>}
     **/`));
 
-    assert.true(assertJSDoc(ret));
-    assert.deepEqual(Object.keys(ret), ["async", "method", "property", "returns"]);
-    assert.is(ret.async.value, true);
-    assert.is(ret.method.value, "sayHello");
-    assert.true(is.array(ret.property));
-    assert.deepEqual(ret.property, [
-        {
-            value: "String",
-            default: null,
-            required: true,
-            name: "name",
-            desc: "a given name"
-        },
-        {
-            value: "Boolean",
-            default: null,
-            required: false,
-            name: "recursive"
-        }
-    ]);
-    assert.deepEqual(ret.returns, { value: "Promise<void>" });
+    expect(assertJSDoc(ret)).toStrictEqual(true);
+    expect(ret).toMatchSnapshot();
+});
+
+test("must parse JSDoc from a Javascript file", async() => {
+    const it = parseFile(join(FIXTURES, "caseA.js"));
+    const blocks = [];
+    for await (const block of it) {
+        blocks.push(block);
+    }
+    expect(blocks).toMatchSnapshot();
+
+    const linked = groupData(blocks);
+    expect(linked.orphans).toHaveLength(1);
+    expect(Object.keys(linked.members)).toHaveLength(1);
+    expect(linked).toMatchSnapshot();
+});
+
+test("groupData blocks argument must be an Array like Object", async() => {
+    try {
+        groupData({});
+        expect(true).toBe(false);
+    }
+    catch (error) {
+        expect(error.name).toStrictEqual("TypeError");
+        expect(error.message).toStrictEqual("blocks must be instanceof <Array>");
+    }
 });

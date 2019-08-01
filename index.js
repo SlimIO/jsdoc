@@ -200,9 +200,6 @@ function groupData(blocks) {
  * @throws {TypeError}
  */
 async function* parseFile(location) {
-    if (typeof location !== "string") {
-        throw new TypeError("location must be a string");
-    }
     const buf = await readFile(location);
 
     for (const [doc] of jsdocExtractor(buf)) {

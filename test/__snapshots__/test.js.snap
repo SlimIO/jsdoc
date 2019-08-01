@@ -1,0 +1,149 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`must parse JSDoc from a Javascript file 1`] = `
+Array [
+  Object {
+    "description": Object {
+      "value": "hello worl",
+    },
+    "type": Object {
+      "default": null,
+      "required": true,
+      "value": "string",
+    },
+  },
+  Object {
+    "class": Object {
+      "value": "hello",
+    },
+    "classdesc": Object {
+      "value": "description here",
+    },
+  },
+  Object {
+    "function": Object {
+      "value": "foo",
+    },
+    "memberof": Object {
+      "value": "hello#",
+    },
+  },
+]
+`;
+
+exports[`must parse JSDoc from a Javascript file 2`] = `
+Object {
+  "members": Object {
+    "hello": Array [
+      Object {
+        "class": Object {
+          "value": "hello",
+        },
+        "classdesc": Object {
+          "value": "description here",
+        },
+        "memberof": Object {
+          "value": "hello",
+        },
+      },
+      Object {
+        "function": Object {
+          "value": "foo",
+        },
+        "memberof": Object {
+          "value": "hello#",
+        },
+      },
+    ],
+  },
+  "orphans": Array [
+    Object {
+      "description": Object {
+        "value": "hello worl",
+      },
+      "type": Object {
+        "default": null,
+        "required": true,
+        "value": "string",
+      },
+    },
+  ],
+}
+`;
+
+exports[`must parse a JSDoc annotation of a generic class Method 1`] = `
+Object {
+  "async": Object {
+    "value": true,
+  },
+  "method": Object {
+    "value": "sayHello",
+  },
+  "property": Array [
+    Object {
+      "default": null,
+      "desc": "a given name",
+      "name": "name",
+      "required": true,
+      "value": "String",
+    },
+    Object {
+      "default": null,
+      "name": "recursive",
+      "required": false,
+      "value": "Boolean",
+    },
+  ],
+  "returns": Object {
+    "value": "Promise<void>",
+  },
+}
+`;
+
+exports[`must parse a JSDoc annotation which contains multiple line @summary & a complete @property 1`] = `
+Object {
+  "property": Object {
+    "default": "\\"bar\\"",
+    "desc": "a foo property",
+    "name": "foo",
+    "required": false,
+    "value": "String",
+  },
+  "summary": Object {
+    "value": "A mutiline
+comment",
+  },
+}
+`;
+
+exports[`must parse a JSDoc annotation with multiple tag & an @example 1`] = `
+Object {
+  "example": Object {
+    "value": "const str = \\"hello world!\\";    console.log(str);",
+  },
+  "throws": Array [
+    Object {
+      "value": "TypeError",
+    },
+    Object {
+      "value": "Error",
+    },
+    Object {
+      "value": "SyntaxError",
+    },
+  ],
+}
+`;
+
+exports[`must parse a simple JSDoc annotation with @const & @name tag 1`] = `
+Object {
+  "const": Object {
+    "value": "name",
+  },
+  "type": Object {
+    "default": null,
+    "required": true,
+    "value": "String",
+  },
+}
+`;

@@ -5,7 +5,7 @@
 ![dep](https://img.shields.io/david/SlimIO/jsdoc)
 ![size](https://img.shields.io/github/languages/code-size/SlimIO/jsdoc)
 [![Known Vulnerabilities](https://snyk.io//test/github/SlimIO/jsdoc/badge.svg?targetFile=package.json)](https://snyk.io//test/github/SlimIO/jsdoc?targetFile=package.json)
-[![Build Status](https://travis-ci.com/SlimIO/jsdoc.svg?branch=master)](https://travis-ci.com/SlimIO/jsdoc)
+[![Build Status](https://travis-ci.com/SlimIO/jsdoc.svg?branch=master)](https://travis-ci.com/SlimIO/jsdoc) [![Greenkeeper badge](https://badges.greenkeeper.io/SlimIO/jsdoc.svg)](https://greenkeeper.io/)
 
 JSDoc Generator/Parser. (It use [jsdoc-extractor](https://github.com/fraxken/jsdoc-extractor) and [jsdoc-tokenizer](https://github.com/fraxken/jsdoc-tokenizer) under the hood).
 

@@ -56,7 +56,7 @@
         "@slimio/eslint-config": "^3.0.3",
         "@slimio/is": "^1.5.0",
         "@slimio/psp": "^0.8.0",
-        "cross-env": "^5.2.0",
+        "cross-env": "^6.0.0",
         "dotenv": "^8.0.0",
         "eslint": "^6.3.0",
         "husky": "^3.0.2",

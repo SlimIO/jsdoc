@@ -11,7 +11,7 @@
 JSDoc Generator/Parser. (It use [jsdoc-extractor](https://github.com/fraxken/jsdoc-extractor) and [jsdoc-tokenizer](https://github.com/fraxken/jsdoc-tokenizer) under the hood).
 
 ## Requirements
-- [Node.js](https://nodejs.org/en/) v10 or higher
+- [Node.js](https://nodejs.org/en/) v12 or higher
 
 ## Getting Started
 

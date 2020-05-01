@@ -1,76 +1,80 @@
 {
-    "name": "@slimio/jsdoc",
-    "version": "0.4.0",
-    "description": "JSDoc Generator for SlimIO Projects",
-    "main": "index.js",
-    "scripts": {
-        "start": "node index.js",
-        "prepublishOnly": "pkg-ok",
-        "test": "cross-env psp && jest --coverage",
-        "doc": "jsdoc -c ./jsdoc.json -r -R ./README.md -P ./package.json --verbose",
-        "coverage": "c8 -r=\"html\" npm test"
-    },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/SlimIO/jsdoc.git"
-    },
-    "jest": {
-        "collectCoverageFrom": [
-            "index.js",
-            "**/src/**/*.js"
-        ],
-        "testEnvironment": "node",
-        "testMatch": [
-            "**/test/**/*.js"
-        ],
-        "testPathIgnorePatterns": [
-            "/node_modules/",
-            "/test/fixtures/"
-        ]
-    },
-    "keywords": [
-        "jsdoc",
-        "parser",
-        "linker",
-        "generator"
+  "name": "@slimio/jsdoc",
+  "version": "0.4.0",
+  "description": "JSDoc Generator for SlimIO Projects",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "prepublishOnly": "pkg-ok",
+    "test": "cross-env psp && jest --coverage",
+    "doc": "jsdoc -c ./jsdoc.json -r -R ./README.md -P ./package.json --verbose",
+    "coverage": "c8 -r=\"html\" npm test",
+    "snyk-protect": "snyk protect",
+    "prepublish": "npm run snyk-protect"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SlimIO/jsdoc.git"
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "index.js",
+      "**/src/**/*.js"
     ],
-    "files": [
-        "index.js",
-        "index.d.ts",
-        "src/utils.js"
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/test/**/*.js"
     ],
-    "author": "SlimIO",
-    "license": "MIT",
-    "bugs": {
-        "url": "https://github.com/SlimIO/jsdoc/issues"
-    },
-    "homepage": "https://github.com/SlimIO/jsdoc#readme",
-    "dependencies": {
-        "jsdoc-extractor": "^3.1.1",
-        "jsdoc-tokenizer": "^1.4.2"
-    },
-    "devDependencies": {
-        "@commitlint/cli": "^8.2.0",
-        "@commitlint/config-conventional": "^8.2.0",
-        "@escommunity/minami": "^1.0.0",
-        "@slimio/eslint-config": "^3.0.3",
-        "@slimio/is": "^1.5.0",
-        "@slimio/psp": "^0.9.2",
-        "cross-env": "^6.0.3",
-        "dotenv": "^8.2.0",
-        "eslint": "^6.6.0",
-        "husky": "^3.0.9",
-        "jest": "^24.9.0",
-        "jsdoc": "^3.5.5",
-        "pkg-ok": "^2.3.1"
-    },
-    "engines": {
-        "node": ">=12"
-    },
-    "husky": {
-        "hooks": {
-            "pre-push": "cross-env eslint index.js src/utils.js && npm test",
-            "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
-        }
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/test/fixtures/"
+    ]
+  },
+  "keywords": [
+    "jsdoc",
+    "parser",
+    "linker",
+    "generator"
+  ],
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "src/utils.js"
+  ],
+  "author": "SlimIO",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/SlimIO/jsdoc/issues"
+  },
+  "homepage": "https://github.com/SlimIO/jsdoc#readme",
+  "dependencies": {
+    "jsdoc-extractor": "^3.1.1",
+    "jsdoc-tokenizer": "^1.4.2",
+    "snyk": "^1.316.1"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^8.2.0",
+    "@commitlint/config-conventional": "^8.2.0",
+    "@escommunity/minami": "^1.0.0",
+    "@slimio/eslint-config": "^3.0.3",
+    "@slimio/is": "^1.5.0",
+    "@slimio/psp": "^0.9.2",
+    "cross-env": "^6.0.3",
+    "dotenv": "^8.2.0",
+    "eslint": "^6.6.0",
+    "husky": "^3.0.9",
+    "jest": "^24.9.0",
+    "jsdoc": "^3.5.5",
+    "pkg-ok": "^2.3.1"
+  },
+  "engines": {
+    "node": ">=12"
+  },
+  "husky": {
+    "hooks": {
+      "pre-push": "cross-env eslint index.js src/utils.js && npm test",
+      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
     }
+  },
+  "snyk": true
 }
